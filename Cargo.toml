@@ -1,6 +1,6 @@
 [package]
 name = "libudp"
-version = "0.4.1"
+version = "0.5.0"
 edition = "2024"
 rust-version = "1.86"
 description = "A series of tools for libev to assist in UDP"
@@ -11,7 +11,7 @@ categories = ["network-programming", "asynchronous"]
 exclude = [".github"]
 
 [dependencies]
-libev = "0.4.0"
+libev = "0.5.0"
 bytes = "1.12.1"
 futures-core = { version = "0.3.34", default-features = false, features = ["alloc"] }
 rustc-hash = "2.1.3"
