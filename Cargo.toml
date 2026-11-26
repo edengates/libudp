@@ -5,6 +5,7 @@ edition = "2024"
 rust-version = "1.86"
 description = "A Rust I/O library for the event-driven asynchronous UDP applications"
 license = "Apache-2.0"
+repository = "https://github.com/edengates/libudp"
 keywords = ["network", "udp", "iocp", "io-uring", "epoll"]
 categories = ["network-programming", "asynchronous"]
 exclude = [".github"]
