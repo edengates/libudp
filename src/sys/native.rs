@@ -24,6 +24,7 @@ use std::os::fd::AsFd;
 use std::os::fd::AsRawFd;
 use std::sync::mpsc::Receiver;
 
+#[cfg(target_os = "linux")]
 pub(crate) mod event {
     pub(crate) use libev::ext::Event;
 }
