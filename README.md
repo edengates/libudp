@@ -1,27 +1,6 @@
 # libudp
 
-libudp is the UDP extension of [libev](https://github.com/edengates/libev), a Rust library for event driven network
-applications that runs on the native I/O of each operating system. It brings the same design to datagrams: IOCP on
-Windows, io_uring or epoll on Linux, and kqueue on macOS and FreeBSD drive the sockets, and your code only has to react
-to events.
-
-Where libev moves streams of bytes, libudp moves packets. A `Packet` holds the content of one datagram together with the
-address of its peer: the sender of a received packet, or the recipient of a sent one. A socket either receives from every
-address or is connected to a single remote address. It is configured and started with the
-`DefaultPacketManagerBuilder`, which returns the `PacketManager` that owns it.
-
-Every socket is handled by a `PacketChannel`, which tells your listeners when it is ready, when a packet has been
-received, when it has stayed idle for longer than the AFK timeout and when it has been closed. A listener is a
-`PacketListenerAdapter`. Several listeners can be chained, and each one hands its own type of packets on to the next.
-
-Besides the events, libudp provides:
-
-* the `SocketAction`s of libev to send packets, such as `queue`, `complete` and `map`
-* a `ThreadChannel` to write, flush, close or deafen a channel from any other thread, and a channel cache to find the
-  channels of a `PacketManager` again
-* a graceful shutdown that still sends the enqueued packets, and a shutdown that cancels them
-* the thread pool of libev, which sockets can share, and settings for the buffers, for the limits of a read loop and of a
-  batch, and for the power of the threads on Windows
+libudp is a series of extensions for use with [libev](https://github.com/edengates/libev) to assist in using UDP.
 
 ## Installation
 
