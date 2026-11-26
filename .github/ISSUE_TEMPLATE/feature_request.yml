@@ -1,0 +1,35 @@
+name: Feature Request
+description: Request a new feature
+body:
+- type: markdown
+  attributes:
+    value: |-
+      Keep in mind that this isn't the place to learn Rust.
+      Please head over to [Stack Overflow](https://stackoverflow.com/questions/tagged/rust) for your general programming questions.
+- type: checkboxes
+  attributes:
+    label: General Troubleshooting
+    description: You confirm to have made the following checks first.
+    options:
+      - label: I have checked for similar issues on the Issue-tracker.
+        required: true
+      - label: I have updated to the latest libudp version.
+        required: true
+      - label: I have checked the branches or the maintainers' PRs for upcoming features.
+        required: true
+- type: textarea
+  attributes:
+    label: "Feature Request"
+    description: "Provide a small description of the feature you want to have added."
+    placeholder: "libudp should get ..."
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: "Example Use-Case"
+    description: |-
+      Provide some code or describe a possible use-case for this feature.
+
+      The provided text will be rendered as Rust code, so you don't have to provide a Code block for it.
+    placeholder: "fn new_awesome_method() {}"
+    render: rust

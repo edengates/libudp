@@ -1,0 +1,79 @@
+name: Bug Report
+description: Found a Bug that needs to be fixed?
+body:
+- type: markdown
+  attributes:
+    value: |-
+      Keep in mind that this isn't the place to learn Rust.
+      Please head over to [Stack Overflow](https://stackoverflow.com/questions/tagged/rust) for your general programming questions.
+- type: checkboxes
+  attributes:
+    label: General Troubleshooting
+    description: You confirm to have made the following checks first.
+    options:
+      - label: I have checked for similar issues on the Issue-tracker.
+        required: true
+      - label: I have checked for PRs that might already address this issue.
+        required: true
+- type: input
+  attributes:
+    label: "Version of libudp"
+    description: |
+      Please let us know, which specific version of libudp you used.
+      If your version is outdated, maybe try updating and see if that already fixes your problem.
+      To find out your version, you can run `cargo tree -i libudp` in your project.
+    placeholder: "For example 0.4.0"
+  validations:
+    required: true
+- type: input
+  attributes:
+    label: "Operating System"
+    description: "Please let us know, which operating system and version you used."
+    placeholder: "For example Ubuntu 24.04"
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: "Expected Behaviour"
+    description: "What did you expect libudp to do?"
+    placeholder: "libudp should do ..."
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: "Code Example for Reproduction Steps"
+    description: |-
+      Please add the code you use to reproduce this problem.
+      Make sure to remove or replace any sensitive data.
+      Put "N/A" if you don't have a reproducible setup.
+
+      The provided text will be rendered as Rust code, so you don't have to provide a Code block for it.
+    render: rust
+    placeholder: |-
+      fn cause_error() -> io::Result<()> {
+          Err(io::ErrorKind::Other.into())
+      }
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: "Code for DefaultPacketManagerBuilder used"
+    description: |-
+      Please provide the code used to create your PacketManager instance.
+      Make sure to remove or replace any sensitive data.
+
+      The provided text will be rendered as Rust code, so you don't have to provide a Code block for it.
+    render: rust
+    placeholder: 'let manager = DefaultPacketManagerBuilder::new().add_event_listener(listener).build()?;'
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: "Error or Panic"
+    description: |-
+      Share any error or panic you encountered.
+      Leave this blank or put "N/A" if you don't have an error or panic.
+
+      The provided text will be rendered as code, so you don't have to provide a Code block for it.
+    render: text
+    placeholder: "Error: Kind(AddrInUse)"
