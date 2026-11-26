@@ -139,4 +139,4 @@ native I/O APIs of each operating system.
 
 Note that libudp re-exports the types of libev it uses, so your project does not need a separate dependency on libev.
 
-Every libudp `0.4.x` release requires libev `0.4`.
+Every libudp `0.5.x` release requires libev `0.5`.

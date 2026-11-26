@@ -55,9 +55,9 @@ checksum = "65cd87c9a6d60536580b316ad985726104730a5151c99845f2490428ef91240a"
 
 [[package]]
 name = "libev"
-version = "0.4.0"
+version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd74bcc3b0b0924ceb1928fcd55be24042dbcb54a459d1c8e44089edbdb3bd06"
+checksum = "c24967101aabe142ef9238465e93dadbebaeb293b53b47658832a6a55667bf5c"
 dependencies = [
  "bytes",
  "futures-core",
@@ -72,7 +72,7 @@ dependencies = [
 
 [[package]]
 name = "libudp"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "bytes",
  "futures-core",
