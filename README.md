@@ -4,16 +4,6 @@ This open source library is intended for implementing UDP sockets in Rust using 
 operating system. It provides event based functionality to implement protocols of any kind, allowing for effective and
 scalable applications.
 
-## Overview
-
-The core concepts of libudp have been developed to make building scalable UDP sockets easy:
-
-1. Event System  
-    Providing simple events for every channel, to respond to new packets, closes and timeouts without much hassle.
-2. Event Loops  
-    Using the native I/O API of each system: IOCP on Windows, io_uring or epoll on Linux, and kqueue on macOS and
-    FreeBSD.
-
 ## Installation
 
 Add the library to your `Cargo.toml`:
