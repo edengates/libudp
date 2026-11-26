@@ -1,0 +1,26 @@
+/*
+ * Copyright 2026 Ada Morgan, John Regan and the libev contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+//! Every [`PacketChannel`] has its registered [`PacketListenerAdapter`]s that deal with the handling and forwarding of
+//! events.
+//!
+//! All of the [`PacketListenerAdapter`]s of a [`PacketChannel`] are single-threaded.
+//!
+//! [`PacketChannel`]: crate::entities::channel::middleman::PacketChannel
+mod packet_listener;
+pub use packet_listener::PacketListener;
+mod packet_listener_adapter;
+pub use packet_listener_adapter::PacketListenerAdapter;

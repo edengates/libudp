@@ -1,0 +1,214 @@
+/*
+ * Copyright 2026 Ada Morgan, John Regan and the libev contributors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+use crate::Packet;
+use crate::handle::uring::Message;
+use crate::utils::concurrent::ScheduledExecutorService;
+use io_uring::{opcode, types};
+use std::io;
+use std::os::fd::AsRawFd;
+
+pub(crate) trait DatagramOperations {
+    fn receive_from<S: AsRawFd>(&mut self, socket: &S, capacity: usize) -> io::Result<()>;
+
+    fn send_to<S: AsRawFd>(&mut self, socket: &S, packet: Packet, has_remote: bool) -> io::Result<()>;
+}
+
+impl DatagramOperations for ScheduledExecutorService {
+    fn receive_from<S: AsRawFd>(&mut self, socket: &S, capacity: usize) -> io::Result<()> {
+        let mut message = Message::receive(capacity);
+        let recv = opcode::RecvMsg::new(types::Fd(socket.as_raw_fd()), message.header());
+        self.submit_request(recv.build(), opcode::RecvMsg::CODE, message)
+    }
+
+    fn send_to<S: AsRawFd>(&mut self, socket: &S, packet: Packet, has_remote: bool) -> io::Result<()> {
+        let mut message = Message::send(packet, has_remote);
+        let send = opcode::SendMsg::new(types::Fd(socket.as_raw_fd()), message.header());
+        self.submit_request(send.build(), opcode::SendMsg::CODE, message)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::handle::event::Event;
+    use crate::handle::socket;
+    use crate::handle::{Completion, SocketHandler};
+    use crate::utils::concurrent::Dispatcher;
+    use crate::utils::config::PacketConfig;
+    use bytes::BytesMut;
+    use libev::ext::CompletionService;
+    use std::net::UdpSocket;
+    use std::os::fd::{AsFd, BorrowedFd};
+    use std::sync::Arc;
+    use std::sync::mpsc::{self, Receiver, Sender};
+    use std::time::Duration;
+
+    type Start = Box<dyn FnOnce(&mut ScheduledExecutorService, &UdpSocket) -> io::Result<()>>;
+    type Outcome = (u8, i32, Option<Box<Message>>);
+
+    struct Collector {
+        socket: UdpSocket,
+        sender: Sender<Outcome>,
+        start: Option<Start>,
+    }
+
+    impl SocketHandler for Collector {
+        fn socket(&self) -> BorrowedFd<'_> {
+            self.socket.as_fd()
+        }
+
+        fn on_registered(&mut self, manager: &mut ScheduledExecutorService) -> io::Result<bool> {
+            self.socket.set_nonblocking(false)?;
+            if let Some(start) = self.start.take() {
+                start(manager, &self.socket)?;
+            }
+            Ok(true)
+        }
+
+        fn handle(&mut self, _manager: &mut ScheduledExecutorService, completion: Completion) -> io::Result<bool> {
+            let Ok(Event::IoUring(packet)) = completion else {
+                return Ok(false);
+            };
+            self.sender.send((packet.opcode(), packet.result(), packet.into_request::<Message>())).ok();
+            Ok(true)
+        }
+    }
+
+    fn manager() -> ScheduledExecutorService {
+        let port = Arc::new(CompletionService::new_factory()(64).unwrap());
+        let dispatcher = Dispatcher::new(&port).0;
+        ScheduledExecutorService::new(port, dispatcher, 64)
+    }
+
+    fn config() -> PacketConfig {
+        PacketConfig {
+            address: Some("127.0.0.1:0".parse().unwrap()),
+            remote_address: None,
+            is_address_shared: false,
+            is_broadcast_enabled: false,
+            receive_buffer_size: None,
+            send_buffer_size: None,
+            afk_timeout: None,
+            timeout: Duration::from_secs(30),
+        }
+    }
+
+    fn register(manager: &mut ScheduledExecutorService, socket: UdpSocket, start: Start) -> Receiver<Outcome> {
+        let (sender, receiver) = mpsc::channel();
+        manager.register(Box::new(Collector { socket, sender, start: Some(start) })).unwrap();
+        receiver
+    }
+
+    fn on_success(manager: &mut ScheduledExecutorService, receiver: &Receiver<Outcome>) -> Outcome {
+        manager.run_worker().unwrap();
+        receiver.recv_timeout(Duration::from_secs(5)).unwrap()
+    }
+
+    #[test]
+    fn receive() {
+        let mut manager = manager();
+        let socket = socket::packet(&config()).unwrap();
+        let address = socket.local_addr().unwrap();
+        let receiver = register(&mut manager, socket, Box::new(|manager, socket| manager.receive_from(socket, 16)));
+        let client = UdpSocket::bind("127.0.0.1:0").unwrap();
+
+        client.send_to(b"ping", address).unwrap();
+
+        let (opcode, result, message) = on_success(&mut manager, &receiver);
+        assert_eq!(opcode, opcode::RecvMsg::CODE);
+        assert_eq!(result, 4);
+        let (content, sender) = message.unwrap().complete(result as usize);
+        assert_eq!(&content[..], b"ping");
+        assert_eq!(sender, Some(client.local_addr().unwrap()));
+    }
+
+    #[test]
+    fn truncate() {
+        let mut manager = manager();
+        let socket = socket::packet(&config()).unwrap();
+        let address = socket.local_addr().unwrap();
+        let receiver = register(&mut manager, socket, Box::new(|manager, socket| manager.receive_from(socket, 4)));
+        let client = UdpSocket::bind("127.0.0.1:0").unwrap();
+
+        client.send_to(b"hello world", address).unwrap();
+
+        let (_, result, message) = on_success(&mut manager, &receiver);
+        let (content, _) = message.unwrap().complete(result as usize);
+        assert_eq!(&content[..], b"hell");
+    }
+
+    #[test]
+    fn send() {
+        let mut manager = manager();
+        let client = UdpSocket::bind("127.0.0.1:0").unwrap();
+        client.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+        let socket = socket::packet(&config()).unwrap();
+        let address = socket.local_addr().unwrap();
+        let target = client.local_addr().unwrap();
+        let receiver = register(
+            &mut manager,
+            socket,
+            Box::new(move |manager, socket| {
+                manager.send_to(socket, Packet::new(BytesMut::from(&b"pong"[..]), target), false)
+            }),
+        );
+
+        let (opcode, result, message) = on_success(&mut manager, &receiver);
+        assert_eq!(opcode, opcode::SendMsg::CODE);
+        assert_eq!(result, 4);
+        assert_eq!(&message.unwrap().into_content()[..], b"pong");
+
+        let mut data = [0; 16];
+        let (length, sender) = client.recv_from(&mut data).unwrap();
+        assert_eq!(&data[..length], b"pong");
+        assert_eq!(sender, address);
+    }
+
+    #[test]
+    fn connected() {
+        let mut manager = manager();
+        let client = UdpSocket::bind("127.0.0.1:0").unwrap();
+        client.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+        let target = client.local_addr().unwrap();
+        let socket = socket::packet(&PacketConfig { remote_address: Some(target), ..config() }).unwrap();
+        let receiver = register(
+            &mut manager,
+            socket,
+            Box::new(move |manager, socket| {
+                manager.send_to(socket, Packet::new(BytesMut::from(&b"pong"[..]), target), true)
+            }),
+        );
+
+        assert_eq!(on_success(&mut manager, &receiver).1, 4);
+
+        let mut data = [0; 16];
+        let (length, _) = client.recv_from(&mut data).unwrap();
+        assert_eq!(&data[..length], b"pong");
+    }
+
+    #[test]
+    fn close() {
+        let mut manager = manager();
+        let socket = socket::packet(&config()).unwrap();
+        let _receiver = register(&mut manager, socket, Box::new(|manager, socket| manager.receive_from(socket, 16)));
+        assert_eq!(manager.pending(), 1);
+
+        manager.close();
+
+        assert_eq!(manager.pending(), 0);
+    }
+}
