@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-//! Every [`PacketChannel`] has its registered [`PacketListenerAdapter`]s that deal with the handling and forwarding of
+//! Every [`DatagramChannel`] has its registered [`PacketListenerAdapter`]s that deal with the handling and forwarding of
 //! events.
 //!
-//! All of the [`PacketListenerAdapter`]s of a [`PacketChannel`] are single-threaded.
+//! All of the [`PacketListenerAdapter`]s of a [`DatagramChannel`] are single-threaded.
 //!
-//! [`PacketChannel`]: crate::entities::channel::middleman::PacketChannel
+//! [`DatagramChannel`]: crate::entities::channel::middleman::DatagramChannel
 mod packet_listener;
 pub use packet_listener::PacketListener;
 mod packet_listener_adapter;

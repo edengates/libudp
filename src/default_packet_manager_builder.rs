@@ -93,7 +93,7 @@ impl<P: EventManager> DefaultPacketManagerBuilder<P> {
     /// Sets the local address the socket is bound to.
     ///
     /// Default: the unspecified address of the family of the [`remote_address`](Self::set_remote_address) and port `0`
-    pub fn set_address(mut self, address: SocketAddr) -> Self {
+    pub fn set_local_address(mut self, address: SocketAddr) -> Self {
         self.address = Some(address);
         self
     }
@@ -338,14 +338,14 @@ mod tests {
     use super::*;
     use crate::requests::sockactions::SocketAction;
     use crate::hooks::PacketListenerAdapter;
-    use crate::PacketChannel;
+    use crate::DatagramChannel;
     use std::net::UdpSocket;
 
     #[derive(Clone)]
     struct EchoAdapter;
 
     impl PacketListenerAdapter for EchoAdapter {
-        async fn on_packet_received(&mut self, channel: &mut PacketChannel, packet: Packet) -> io::Result<()> {
+        async fn on_packet_received(&mut self, channel: &mut DatagramChannel, packet: Packet) -> io::Result<()> {
             channel.send_packet(packet).complete()
         }
     }
@@ -372,7 +372,7 @@ mod tests {
         let remote_address = peer.local_addr().unwrap();
         let manager = DefaultPacketManagerBuilder::new()
             .set_socket_pool(pool())
-            .set_address("127.0.0.1:0".parse().unwrap())
+            .set_local_address("127.0.0.1:0".parse().unwrap())
             .set_remote_address(remote_address)
             .set_address_shared(true)
             .set_broadcast_enabled(true)
@@ -384,7 +384,7 @@ mod tests {
             .build()
             .unwrap();
 
-        assert_ne!(manager.address().port(), 0);
+        assert_ne!(manager.local_address().port(), 0);
         assert_eq!(manager.remote_address(), Some(remote_address));
         assert!(manager.is_address_shared());
         assert!(manager.is_broadcast_enabled());
@@ -408,18 +408,18 @@ mod tests {
     fn exchange(pool: ScheduledThreadPoolExecutor) {
         let manager = DefaultPacketManagerBuilder::new()
             .set_socket_pool(pool)
-            .set_address("127.0.0.1:0".parse().unwrap())
+            .set_local_address("127.0.0.1:0".parse().unwrap())
             .add_event_listener(EchoAdapter)
             .build()
             .unwrap();
         let client = UdpSocket::bind("127.0.0.1:0").unwrap();
         client.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
-        client.send_to(b"ping", manager.address()).unwrap();
+        client.send_to(b"ping", manager.local_address()).unwrap();
 
         let mut data = [0; 16];
         let (length, sender) = client.recv_from(&mut data).unwrap();
         assert_eq!(&data[..length], b"ping");
-        assert_eq!(sender, manager.address());
+        assert_eq!(sender, manager.local_address());
         manager.shutdown_now().unwrap();
     }
 }

@@ -40,7 +40,7 @@ impl Buffer {
         if self.closed {
             return Err(io::ErrorKind::NotConnected.into());
         }
-        self.size += packet.content().len();
+        self.size += packet.data().len();
         self.update(threshold, large_threshold);
         self.queued.push(packet);
         Ok(())

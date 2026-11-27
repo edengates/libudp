@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-use crate::entities::channel::middleman::PacketChannel;
+use crate::entities::channel::middleman::DatagramChannel;
 use crate::events::Event;
 use std::any::Any;
 use std::io;
 
-/// An interface for receiving events and packets of a [`PacketChannel`].
+/// An interface for receiving events and packets of a [`DatagramChannel`].
 ///
 /// Implement [`PacketListenerAdapter`] instead to have the events divided for you.
 ///
@@ -27,11 +27,11 @@ use std::io;
 #[allow(async_fn_in_trait)]
 pub trait PacketListener<I: Any + Send, O: Any + Send>: Send {
     /// Handles an event of the channel.
-    async fn on_event(&mut self, channel: &mut PacketChannel<O, I>, event: Box<dyn Event>) -> io::Result<()>;
+    async fn on_event(&mut self, channel: &mut DatagramChannel<O, I>, event: Box<dyn Event>) -> io::Result<()>;
 
     /// Handles a packet from the next listener.
-    async fn write(&mut self, channel: &mut PacketChannel<O, I>, packet: O) -> io::Result<()>;
+    async fn write(&mut self, channel: &mut DatagramChannel<O, I>, packet: O) -> io::Result<()>;
 
-    /// Handles [`PacketChannel::close`] of the next listener.
-    async fn close(&mut self, channel: &mut PacketChannel<O, I>) -> io::Result<()>;
+    /// Handles [`DatagramChannel::close`] of the next listener.
+    async fn close(&mut self, channel: &mut DatagramChannel<O, I>) -> io::Result<()>;
 }

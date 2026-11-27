@@ -17,7 +17,7 @@
 use bytes::BytesMut;
 use libudp::hooks::PacketListenerAdapter;
 use libudp::requests::sockactions::SocketAction;
-use libudp::{DefaultPacketManagerBuilder, Packet, PacketChannel};
+use libudp::{DefaultPacketManagerBuilder, Packet, DatagramChannel};
 use std::net::SocketAddr;
 use std::{env, io};
 
@@ -31,7 +31,7 @@ struct PacketCreateExample {
 impl PacketListenerAdapter for PacketCreateExample {
     // This overrides the method called on_ready in the PacketListenerAdapter trait
     // It gets called once the socket is bound
-    async fn on_ready(&mut self, channel: &mut PacketChannel) -> io::Result<()> {
+    async fn on_ready(&mut self, channel: &mut DatagramChannel) -> io::Result<()> {
         // send_packet(...) creates a PacketCreateAction, nothing is sent until you queue it
         // queue(...) adds the packet to the channel buffer and calls one of the callbacks with the result
         let packet = Packet::new(BytesMut::from(self.content.as_bytes()), self.address);
@@ -42,8 +42,8 @@ impl PacketListenerAdapter for PacketCreateExample {
     }
 
     // Gets called for every reply of the address, this one prints it and closes the channel
-    async fn on_packet_received(&mut self, channel: &mut PacketChannel, packet: Packet) -> io::Result<()> {
-        println!("[reply] {}", String::from_utf8_lossy(packet.content()));
+    async fn on_packet_received(&mut self, channel: &mut DatagramChannel, packet: Packet) -> io::Result<()> {
+        println!("[reply] {}", String::from_utf8_lossy(packet.data()));
         channel.close();
         Ok(())
     }

@@ -25,7 +25,7 @@ use std::net::UdpSocket;
 use std::os::fd::{AsFd, BorrowedFd};
 use std::rc::Rc;
 
-pub struct PacketSocketChannel {
+pub struct DatagramSocketChannel {
     socket: UdpSocket,
     channel: Rc<PacketChannelMixin>,
     has_remote: bool,
@@ -34,7 +34,7 @@ pub struct PacketSocketChannel {
     closing: bool,
 }
 
-impl PacketSocketChannel {
+impl DatagramSocketChannel {
     pub(crate) fn new(socket: UdpSocket, packet_manager: PacketManager) -> Self {
         let has_remote = packet_manager.remote_address().is_some();
         Self {
@@ -86,9 +86,9 @@ impl PacketSocketChannel {
         }
         while let Some(packet) = self.pending.front() {
             let data = if self.has_remote {
-                self.socket.send(packet.content())
+                self.socket.send(packet.data())
             } else {
-                self.socket.send_to(packet.content(), packet.address())
+                self.socket.send_to(packet.data(), packet.socket_address())
             };
             match data {
                 Ok(_) => {}
@@ -96,7 +96,7 @@ impl PacketSocketChannel {
                 Err(error) if error.kind() == io::ErrorKind::ConnectionRefused => {}
                 Err(error) => return Err(error),
             }
-            self.channel.handle_response(packet.content().len());
+            self.channel.handle_response(packet.data().len());
             self.pending.pop_front();
         }
         Ok(true)
@@ -132,7 +132,7 @@ impl PacketSocketChannel {
     }
 }
 
-impl SocketHandler for PacketSocketChannel {
+impl SocketHandler for DatagramSocketChannel {
     fn execute(&mut self, manager: &mut ScheduledExecutorService) -> io::Result<bool> {
         while self.send()? {}
         if self.pending.is_empty() {
@@ -192,7 +192,7 @@ mod tests {
     use super::*;
     use crate::requests::sockactions::SocketAction;
     use crate::hooks::PacketListenerAdapter;
-    use crate::{DefaultPacketManagerBuilder, PacketChannel};
+    use crate::{DatagramChannel, DefaultPacketManagerBuilder};
     use crate::utils::concurrent::{Dispatcher, ScheduledThreadPoolExecutor};
     use crate::utils::config::PacketConfig;
     use libev::ext::CompletionService;
@@ -203,7 +203,7 @@ mod tests {
     struct EchoAdapter;
 
     impl PacketListenerAdapter for EchoAdapter {
-        async fn on_packet_received(&mut self, channel: &mut PacketChannel, packet: Packet) -> io::Result<()> {
+        async fn on_packet_received(&mut self, channel: &mut DatagramChannel, packet: Packet) -> io::Result<()> {
             channel.send_packet(packet).complete()
         }
     }
@@ -218,7 +218,7 @@ mod tests {
         let pool = ScheduledThreadPoolExecutor::with_factory(1, 64, CompletionService::epoll_factory());
         builder
             .set_socket_pool(pool.unwrap())
-            .set_address("127.0.0.1:0".parse().unwrap())
+            .set_local_address("127.0.0.1:0".parse().unwrap())
             .add_event_listener(EchoAdapter)
             .build()
             .unwrap()
@@ -243,7 +243,7 @@ mod tests {
         let address = socket.local_addr().unwrap();
         let mut manager = manager();
         let packet_manager = packet_manager(DefaultPacketManagerBuilder::new());
-        manager.register(Box::new(PacketSocketChannel::new(socket, packet_manager))).unwrap();
+        manager.register(Box::new(DatagramSocketChannel::new(socket, packet_manager))).unwrap();
         manager.schedule(Duration::from_secs(5), |_| ());
 
         let client = UdpSocket::bind("127.0.0.1:0").unwrap();
@@ -267,7 +267,7 @@ mod tests {
         let address = socket.local_addr().unwrap();
         let mut manager = manager();
         let packet_manager = packet_manager(DefaultPacketManagerBuilder::new().set_remote_address(remote_address));
-        manager.register(Box::new(PacketSocketChannel::new(socket, packet_manager))).unwrap();
+        manager.register(Box::new(DatagramSocketChannel::new(socket, packet_manager))).unwrap();
         manager.schedule(Duration::from_secs(5), |_| ());
 
         client.send_to(b"ping", address).unwrap();

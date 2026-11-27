@@ -15,7 +15,7 @@
  */
 
 use crate::entities::ISnowflake;
-use crate::entities::channel::middleman::PacketChannel;
+use crate::entities::channel::middleman::DatagramChannel;
 use crate::requests::sockactions::ThreadPacketCreateAction;
 use crate::Packet;
 use crate::utils::concurrent::{Dispatcher, ScheduledExecutorService};
@@ -23,9 +23,9 @@ use std::io;
 use std::marker::PhantomData;
 use std::sync::{Arc, mpsc};
 
-/// A [`PacketChannel`] that can be shared with other threads.
+/// A [`DatagramChannel`] that can be shared with other threads.
 ///
-/// Every method runs the same method of the [`PacketChannel`] on the thread of the channel.
+/// Every method runs the same method of the [`DatagramChannel`] on the thread of the channel.
 ///
 /// `N` is the type of packets for the next listener, `P` is the type of packets for the parent channel.
 pub struct ThreadChannel<N = Packet, P = Packet> {
@@ -150,7 +150,7 @@ impl<N: 'static, P: Send + 'static> ThreadChannel<N, P> {
     pub(crate) fn submit<T, F>(&self, action: F) -> io::Result<T>
     where
         T: Send + 'static,
-        F: FnOnce(&mut PacketChannel<N, P>) -> io::Result<T> + Send + 'static,
+        F: FnOnce(&mut DatagramChannel<N, P>) -> io::Result<T> + Send + 'static,
     {
         if ScheduledExecutorService::is_current(self.dispatcher.port()) {
             return Err(io::ErrorKind::Deadlock.into());
@@ -162,7 +162,7 @@ impl<N: 'static, P: Send + 'static> ThreadChannel<N, P> {
         receiver.recv().map_err(|_| io::Error::from(io::ErrorKind::NotConnected))?
     }
 
-    pub(crate) fn execute<F: FnOnce(&mut PacketChannel<N, P>) + Send + 'static>(&self, action: F) -> io::Result<()> {
+    pub(crate) fn execute<F: FnOnce(&mut DatagramChannel<N, P>) + Send + 'static>(&self, action: F) -> io::Result<()> {
         let (id, position) = (self.id, self.position);
         self.dispatcher
             .dispatch(Box::new(move |manager| manager.execute_channel(id, position, action)))

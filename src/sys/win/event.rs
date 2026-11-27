@@ -50,7 +50,7 @@ impl Event {
     }
 
     pub(crate) fn send(packet: Packet, has_remote: bool) -> Box<Self> {
-        let address = SockAddr::from(packet.address());
+        let address = SockAddr::from(packet.socket_address());
         let mut event = Self::new(packet.into_content(), Event::SEND);
         if !has_remote {
             unsafe {

@@ -19,7 +19,7 @@ use libudp::entities::ISnowflake;
 use libudp::entities::channel::concrete::ThreadChannel;
 use libudp::hooks::PacketListenerAdapter;
 use libudp::requests::sockactions::SocketAction;
-use libudp::{DefaultPacketManagerBuilder, Packet, PacketChannel, PacketManager};
+use libudp::{DefaultPacketManagerBuilder, Packet, DatagramChannel, PacketManager};
 use std::io;
 use std::net::{SocketAddr, UdpSocket};
 use std::sync::Arc;
@@ -31,7 +31,7 @@ use std::time::{Duration, Instant};
 struct EchoAdapter;
 
 impl PacketListenerAdapter for EchoAdapter {
-    async fn on_packet_received(&mut self, channel: &mut PacketChannel, packet: Packet) -> io::Result<()> {
+    async fn on_packet_received(&mut self, channel: &mut DatagramChannel, packet: Packet) -> io::Result<()> {
         channel.send_packet(packet).complete()
     }
 }
@@ -42,7 +42,7 @@ struct ThreadChannelAdapter {
 }
 
 impl PacketListenerAdapter for ThreadChannelAdapter {
-    async fn on_ready(&mut self, channel: &mut PacketChannel) -> io::Result<()> {
+    async fn on_ready(&mut self, channel: &mut DatagramChannel) -> io::Result<()> {
         self.callback.send(channel.thread_channel().clone()).ok();
         Ok(())
     }
@@ -54,12 +54,12 @@ struct ThreadEchoAdapter {
 }
 
 impl PacketListenerAdapter for ThreadEchoAdapter {
-    async fn on_ready(&mut self, channel: &mut PacketChannel) -> io::Result<()> {
+    async fn on_ready(&mut self, channel: &mut DatagramChannel) -> io::Result<()> {
         self.callback.send(channel.thread_channel().clone()).ok();
         Ok(())
     }
 
-    async fn on_packet_received(&mut self, channel: &mut PacketChannel, packet: Packet) -> io::Result<()> {
+    async fn on_packet_received(&mut self, channel: &mut DatagramChannel, packet: Packet) -> io::Result<()> {
         channel.send_packet(packet).complete()
     }
 }
@@ -70,8 +70,8 @@ struct ReadyAdapter {
 }
 
 impl PacketListenerAdapter for ReadyAdapter {
-    async fn on_ready(&mut self, channel: &mut PacketChannel) -> io::Result<()> {
-        self.callback.send(channel.packet_manager().address()).ok();
+    async fn on_ready(&mut self, channel: &mut DatagramChannel) -> io::Result<()> {
+        self.callback.send(channel.packet_manager().local_address()).ok();
         channel.on_ready();
         Ok(())
     }
@@ -83,13 +83,13 @@ struct ChannelDisconnectAdapter {
 }
 
 impl PacketListenerAdapter for ChannelDisconnectAdapter {
-    async fn on_ready(&mut self, channel: &mut PacketChannel) -> io::Result<()> {
+    async fn on_ready(&mut self, channel: &mut DatagramChannel) -> io::Result<()> {
         self.callback.send(true).ok();
         channel.on_ready();
         Ok(())
     }
 
-    async fn on_channel_disconnect(&mut self, channel: &mut PacketChannel) -> io::Result<()> {
+    async fn on_channel_disconnect(&mut self, channel: &mut DatagramChannel) -> io::Result<()> {
         self.callback.send(false).ok();
         channel.on_channel_disconnect();
         Ok(())
@@ -100,7 +100,7 @@ impl PacketListenerAdapter for ChannelDisconnectAdapter {
 struct SessionInvalidateAdapter;
 
 impl PacketListenerAdapter for SessionInvalidateAdapter {
-    async fn on_ready(&mut self, channel: &mut PacketChannel) -> io::Result<()> {
+    async fn on_ready(&mut self, channel: &mut DatagramChannel) -> io::Result<()> {
         channel.close();
         Ok(())
     }
@@ -112,7 +112,7 @@ struct DeadLockAdapter {
 }
 
 impl PacketListenerAdapter for DeadLockAdapter {
-    async fn on_ready(&mut self, channel: &mut PacketChannel) -> io::Result<()> {
+    async fn on_ready(&mut self, channel: &mut DatagramChannel) -> io::Result<()> {
         let address = "127.0.0.1:9".parse().unwrap();
         let data = channel.thread_channel().send_packet(Packet::new(BytesMut::from(&b"ping"[..]), address)).complete();
         self.callback.send(data).ok();
@@ -127,14 +127,14 @@ struct SelfDeafenAdapter {
 }
 
 impl PacketListenerAdapter for SelfDeafenAdapter {
-    async fn on_ready(&mut self, channel: &mut PacketChannel) -> io::Result<()> {
+    async fn on_ready(&mut self, channel: &mut DatagramChannel) -> io::Result<()> {
         channel.set_self_deafened(true);
         self.handle.send(channel.thread_channel().clone()).ok();
         Ok(())
     }
 
-    async fn on_packet_received(&mut self, _channel: &mut PacketChannel, packet: Packet) -> io::Result<()> {
-        self.callback.send(packet.content().to_vec()).ok();
+    async fn on_packet_received(&mut self, _channel: &mut DatagramChannel, packet: Packet) -> io::Result<()> {
+        self.callback.send(packet.data().to_vec()).ok();
         Ok(())
     }
 }
@@ -145,7 +145,7 @@ struct ChannelTimeoutAdapter {
 }
 
 impl PacketListenerAdapter for ChannelTimeoutAdapter {
-    async fn on_channel_timeout(&mut self, channel: &mut PacketChannel) -> io::Result<()> {
+    async fn on_channel_timeout(&mut self, channel: &mut DatagramChannel) -> io::Result<()> {
         self.callback.send(()).ok();
         channel.close();
         Ok(())
@@ -154,7 +154,7 @@ impl PacketListenerAdapter for ChannelTimeoutAdapter {
 
 fn builder() -> DefaultPacketManagerBuilder {
     DefaultPacketManagerBuilder::new()
-        .set_address("127.0.0.1:0".parse().unwrap())
+        .set_local_address("127.0.0.1:0".parse().unwrap())
         .set_socket_pool(pool())
 }
 
@@ -194,11 +194,11 @@ fn echo() {
     let server = manager(EchoAdapter);
     let client = client();
 
-    client.send_to(b"ping", server.address()).unwrap();
+    client.send_to(b"ping", server.local_address()).unwrap();
 
     let (received, sender) = receive(&client);
     assert_eq!(received, b"ping");
-    assert_eq!(sender, server.address());
+    assert_eq!(sender, server.local_address());
 }
 
 #[test]
@@ -207,7 +207,7 @@ fn payload() {
     let client = client();
     let content: Vec<u8> = (0..1400).map(|index| (index % 251) as u8).collect();
 
-    client.send_to(&content, server.address()).unwrap();
+    client.send_to(&content, server.local_address()).unwrap();
 
     assert_eq!(receive(&client).0, content);
 }
@@ -223,7 +223,7 @@ fn burst() {
     let client = client();
 
     for index in 0u32..50 {
-        client.send_to(&index.to_le_bytes(), server.address()).unwrap();
+        client.send_to(&index.to_le_bytes(), server.local_address()).unwrap();
     }
 
     let mut seen = [false; 50];
@@ -239,7 +239,7 @@ fn truncate() {
     let server = builder().set_buffer_size(4).add_event_listener(EchoAdapter).build().unwrap();
     let client = client();
 
-    client.send_to(b"hello world", server.address()).unwrap();
+    client.send_to(b"hello world", server.local_address()).unwrap();
 
     assert_eq!(receive(&client).0, b"hell");
 }
@@ -255,10 +255,10 @@ fn connected() {
         .build()
         .unwrap();
 
-    stranger.send_to(b"ping", server.address()).unwrap();
+    stranger.send_to(b"ping", server.local_address()).unwrap();
     assert!(stranger.recv_from(&mut [0; 16]).is_err());
 
-    client.send_to(b"pong", server.address()).unwrap();
+    client.send_to(b"pong", server.local_address()).unwrap();
     assert_eq!(receive(&client).0, b"pong");
 }
 
@@ -267,7 +267,7 @@ fn ready() {
     let (sender, receiver) = mpsc::channel();
     let server = manager(ReadyAdapter { callback: sender });
 
-    assert_eq!(receiver.recv_timeout(Duration::from_secs(5)).unwrap(), server.address());
+    assert_eq!(receiver.recv_timeout(Duration::from_secs(5)).unwrap(), server.local_address());
     assert!(receiver.recv_timeout(Duration::from_millis(100)).is_err());
 }
 
@@ -286,7 +286,7 @@ fn disconnect() {
 #[test]
 fn close() {
     let server = manager(SessionInvalidateAdapter);
-    let address = server.address();
+    let address = server.local_address();
 
     wait_until(|| UdpSocket::bind(address).is_ok());
 }
@@ -294,7 +294,7 @@ fn close() {
 #[test]
 fn shutdown() {
     let server = manager(EchoAdapter);
-    let address = server.address();
+    let address = server.local_address();
     assert!(!server.await_shutdown(Duration::ZERO));
 
     server.shutdown();
@@ -307,14 +307,14 @@ fn shutdown() {
 fn shutdown_now() {
     let server = manager(EchoAdapter);
     let client = client();
-    client.send_to(b"ping", server.address()).unwrap();
+    client.send_to(b"ping", server.local_address()).unwrap();
     assert_eq!(receive(&client).0, b"ping");
 
     server.shutdown_now().unwrap();
     assert!(server.await_shutdown(Duration::from_secs(5)));
 
     client.set_read_timeout(Some(Duration::from_millis(300))).unwrap();
-    client.send_to(b"pong", server.address()).unwrap();
+    client.send_to(b"pong", server.local_address()).unwrap();
     assert!(client.recv_from(&mut [0; 16]).is_err());
 }
 
@@ -430,7 +430,7 @@ fn deafen() {
     let server = manager(SelfDeafenAdapter { handle, callback: sender });
     let client = client();
 
-    client.send_to(b"ping", server.address()).unwrap();
+    client.send_to(b"ping", server.local_address()).unwrap();
 
     assert!(receiver.recv_timeout(Duration::from_millis(300)).is_err());
 }
@@ -442,7 +442,7 @@ fn undeafen() {
     let server = manager(SelfDeafenAdapter { handle, callback: sender });
     let client = client();
     let channel = channels.recv_timeout(Duration::from_secs(5)).unwrap();
-    client.send_to(b"ping", server.address()).unwrap();
+    client.send_to(b"ping", server.local_address()).unwrap();
     assert!(receiver.recv_timeout(Duration::from_millis(300)).is_err());
 
     channel.set_self_deafened(false).unwrap();
@@ -461,7 +461,7 @@ fn idle() {
     let client = client();
 
     for _ in 0..4 {
-        client.send_to(b"ping", server.address()).unwrap();
+        client.send_to(b"ping", server.local_address()).unwrap();
         thread::sleep(Duration::from_millis(50));
     }
     assert!(receiver.try_recv().is_err());
@@ -480,7 +480,7 @@ fn refused() {
     channel.send_packet(packet(b"pong", closed)).complete().unwrap();
 
     let client = client();
-    client.send_to(b"ping", server.address()).unwrap();
+    client.send_to(b"ping", server.local_address()).unwrap();
     assert_eq!(receive(&client).0, b"ping");
 }
 
@@ -509,7 +509,7 @@ fn builder_settings() {
         .build()
         .unwrap();
 
-    assert!(manager.address().ip().is_loopback());
+    assert!(manager.local_address().ip().is_loopback());
     assert_eq!(manager.remote_address(), Some(remote));
     assert!(manager.is_address_shared());
     assert!(manager.is_broadcast_enabled());

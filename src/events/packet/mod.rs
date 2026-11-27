@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-//! Events that are fired for packets in a [`PacketChannel`], such as [receiving].
+//! Events that are fired for packets in a [`DatagramChannel`], such as [receiving].
 //!
-//! [`PacketChannel`]: crate::entities::channel::middleman::PacketChannel
+//! [`DatagramChannel`]: crate::entities::channel::middleman::DatagramChannel
 //! [receiving]: PacketReceivedEvent
 mod packet_received_event;
 pub use packet_received_event::PacketReceivedEvent;

@@ -15,7 +15,7 @@
  */
 
 use libudp::hooks::PacketListenerAdapter;
-use libudp::{DefaultPacketManagerBuilder, Packet, PacketChannel};
+use libudp::{DefaultPacketManagerBuilder, Packet, DatagramChannel};
 use std::{env, io};
 
 // The channel uses its own clone of the listener, so it has to implement Clone
@@ -25,10 +25,10 @@ struct PacketLoggerExample;
 impl PacketListenerAdapter for PacketLoggerExample {
     // This overrides the method called on_packet_received in the PacketListenerAdapter trait
     // Gets called for every packet received from the socket
-    async fn on_packet_received(&mut self, _channel: &mut PacketChannel, packet: Packet) -> io::Result<()> {
+    async fn on_packet_received(&mut self, _channel: &mut DatagramChannel, packet: Packet) -> io::Result<()> {
         // The content is the raw bytes of the datagram, this converts it to a readable string,
         // the address is the sender of the packet
-        println!("[packet] {}: {}", packet.address(), String::from_utf8_lossy(packet.content()));
+        println!("[packet] {}: {}", packet.socket_address(), String::from_utf8_lossy(packet.data()));
         Ok(())
     }
 }
@@ -40,7 +40,7 @@ fn main() -> io::Result<()> {
     // To start the packet manager, you have to use the DefaultPacketManagerBuilder.
     let manager = DefaultPacketManagerBuilder::new()
         // On this builder, you are setting the address the socket is bound to
-        .set_address(address.parse().map_err(|_| io::ErrorKind::InvalidInput)?)
+        .set_local_address(address.parse().map_err(|_| io::ErrorKind::InvalidInput)?)
         // and adding all your event listeners
         .add_event_listener(PacketLoggerExample)
         // You can do lots of configuration before starting, checkout all the setters on the
@@ -49,7 +49,7 @@ fn main() -> io::Result<()> {
         .build()?;
 
     // The packet manager returns the address the socket is bound to
-    println!("Listening on address: {}", manager.address());
+    println!("Listening on address: {}", manager.local_address());
 
     // The channel is handled on the thread pool, so the main thread can wait here until Enter is pressed
     io::stdin().read_line(&mut String::new())?;

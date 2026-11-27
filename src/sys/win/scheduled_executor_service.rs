@@ -122,8 +122,8 @@ mod tests {
         assert_eq!(event.opcode(), Event::RECEIVE);
         assert_eq!(event.result(), 0);
         let packet = event.into_packet().unwrap();
-        assert_eq!(&packet.content()[..], b"ping");
-        assert_eq!(packet.address(), client.local_addr().unwrap());
+        assert_eq!(&packet.data()[..], b"ping");
+        assert_eq!(packet.socket_address(), client.local_addr().unwrap());
     }
 
     #[test]
@@ -137,7 +137,7 @@ mod tests {
         client.send_to(b"hello world", address).unwrap();
 
         let packet = on_success(&mut manager, &receiver).into_packet().unwrap();
-        assert_eq!(&packet.content()[..], b"hell");
+        assert_eq!(&packet.data()[..], b"hell");
     }
 
     #[test]
