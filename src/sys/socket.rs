@@ -33,7 +33,7 @@ fn new_socket(domain: Domain, kind: Type) -> io::Result<Socket> {
 }
 
 pub(crate) fn packet(config: &PacketConfig) -> io::Result<UdpSocket> {
-    let address = config.address().unwrap_or_else(|| match config.remote_address() {
+    let address = config.local_address().unwrap_or_else(|| match config.remote_address() {
         Some(SocketAddr::V6(_)) => SocketAddr::new(Ipv6Addr::UNSPECIFIED.into(), 0),
         _ => SocketAddr::new(Ipv4Addr::UNSPECIFIED.into(), 0),
     });

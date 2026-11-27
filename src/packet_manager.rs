@@ -75,7 +75,7 @@ impl PacketManager {
     /// The local address the socket is bound to.
     ///
     /// If the socket was requested with port `0`, this has the port that the operating system assigned.
-    pub fn address(&self) -> SocketAddr {
+    pub fn local_address(&self) -> SocketAddr {
         self.inner.address
     }
 

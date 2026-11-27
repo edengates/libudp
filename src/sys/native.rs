@@ -35,7 +35,7 @@ pub(crate) mod uring;
 pub(crate) mod socket;
 #[path = "packet_socket_channel.rs"]
 mod packet_socket_channel;
-pub use packet_socket_channel::PacketSocketChannel;
+pub use packet_socket_channel::DatagramSocketChannel;
 
 #[cfg(target_os = "linux")]
 pub(crate) const READABLE: u32 = rustix::event::epoll::EventFlags::IN.bits();
@@ -68,7 +68,7 @@ pub(crate) fn register_packet(
 ) -> Receiver<io::Result<()>> {
     #[cfg(target_os = "linux")]
     if pool.port().is_io_uring() {
-        return pool.register(move || Box::new(uring::PacketSocketChannel::new(socket, packet_manager)));
+        return pool.register(move || Box::new(uring::DatagramSocketChannel::new(socket, packet_manager)));
     }
-    pool.register(move || Box::new(PacketSocketChannel::new(socket, packet_manager)))
+    pool.register(move || Box::new(DatagramSocketChannel::new(socket, packet_manager)))
 }

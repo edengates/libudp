@@ -21,7 +21,7 @@ There are a number of [examples](examples) to introduce you to libudp.
 Every socket implemented by libudp starts out using the `DefaultPacketManagerBuilder`. The builder provides a set of
 settings for the socket, the thread pool, the buffers and the timeouts it wants to use:
 
-* `set_address` and `set_remote_address` - Choose the address the socket is bound to, and the address it is connected to
+* `set_local_address` and `set_remote_address` - Choose the address the socket is bound to, and the address it is connected to
 * `set_address_shared` and `set_broadcast_enabled` - Choose whether the port is shared with other sockets and whether
   broadcasting is allowed
 * `set_receive_buffer_size` and `set_send_buffer_size` - Choose the sizes of the buffers of the operating system
@@ -51,9 +51,9 @@ struct PacketLoggerExample;
 
 impl PacketListenerAdapter for PacketLoggerExample {
     // Gets called for every packet received from the socket
-    async fn on_packet_received(&mut self, _channel: &mut PacketChannel, packet: Packet) -> io::Result<()> {
+    async fn on_packet_received(&mut self, _channel: &mut DatagramChannel, packet: Packet) -> io::Result<()> {
         // The content is the raw bytes of the datagram, the address is the sender of the packet
-        println!("[packet] {}: {}", packet.address(), String::from_utf8_lossy(packet.content()));
+        println!("[packet] {}: {}", packet.socket_address(), String::from_utf8_lossy(packet.data()));
         Ok(())
     }
 }
@@ -61,12 +61,12 @@ impl PacketListenerAdapter for PacketLoggerExample {
 fn main() -> io::Result<()> {
     // On this builder, you are adding all your event listeners and socket configuration
     let manager = DefaultPacketManagerBuilder::new()
-        .set_address("127.0.0.1:8080".parse().unwrap())
+        .set_local_address("127.0.0.1:8080".parse().unwrap())
         .add_event_listener(PacketLoggerExample)
         .build()?;
 
     // The packet manager returns the address the socket is bound to
-    println!("Listening on address: {}", manager.address());
+    println!("Listening on address: {}", manager.local_address());
 
     // The channel is handled on the thread pool, so the main thread can wait here until Enter is pressed
     io::stdin().read_line(&mut String::new())?;
@@ -94,7 +94,7 @@ struct PacketCreateExample {
 
 impl PacketListenerAdapter for PacketCreateExample {
     // Gets called once the socket is bound
-    async fn on_ready(&mut self, channel: &mut PacketChannel) -> io::Result<()> {
+    async fn on_ready(&mut self, channel: &mut DatagramChannel) -> io::Result<()> {
         // send_packet(...) creates a PacketCreateAction, nothing is sent until you queue it
         let packet = Packet::new(BytesMut::from(&b"ping"[..]), self.address);
         channel.send_packet(packet).queue(
@@ -104,8 +104,8 @@ impl PacketListenerAdapter for PacketCreateExample {
     }
 
     // Gets called for every reply of the address, this one prints it and closes the channel
-    async fn on_packet_received(&mut self, channel: &mut PacketChannel, packet: Packet) -> io::Result<()> {
-        println!("[reply] {}", String::from_utf8_lossy(packet.content()));
+    async fn on_packet_received(&mut self, channel: &mut DatagramChannel, packet: Packet) -> io::Result<()> {
+        println!("[reply] {}", String::from_utf8_lossy(packet.data()));
         channel.close();
         Ok(())
     }

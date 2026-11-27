@@ -16,4 +16,4 @@
 
 //! Abstractions for higher-level features in socket channels, such as sending messages.
 mod packet_channel;
-pub use packet_channel::PacketChannel;
+pub use packet_channel::DatagramChannel;

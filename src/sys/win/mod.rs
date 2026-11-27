@@ -26,12 +26,12 @@ pub(crate) mod event;
 mod scheduled_executor_service;
 pub(crate) use scheduled_executor_service::DatagramOperations;
 mod packet_socket_channel;
-pub use packet_socket_channel::PacketSocketChannel;
+pub use packet_socket_channel::DatagramSocketChannel;
 
 pub(crate) fn register_packet(
     pool: &ExecutorCompletionService,
     socket: UdpSocket,
     packet_manager: PacketManager,
 ) -> Receiver<io::Result<()>> {
-    pool.register(move || Box::new(PacketSocketChannel::new(socket, packet_manager)))
+    pool.register(move || Box::new(DatagramSocketChannel::new(socket, packet_manager)))
 }

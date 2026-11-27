@@ -34,13 +34,13 @@ use std::sync::{Arc, RwLock};
 
 /// Represents a channel that can have packets sent to it.
 ///
-/// Every registered [`PacketListenerAdapter`] has its own [`PacketChannel`] with the position of the listener.
+/// Every registered [`PacketListenerAdapter`] has its own [`DatagramChannel`] with the position of the listener.
 /// The `on_*` methods fire events to the next listener.
 ///
 /// `N` is the type of packets for the next listener, `P` is the type of packets for the parent channel.
 ///
 /// [`PacketListenerAdapter`]: crate::hooks::PacketListenerAdapter
-pub struct PacketChannel<N = Packet, P = Packet> {
+pub struct DatagramChannel<N = Packet, P = Packet> {
     packet_manager: PacketManager,
     buffer: Rc<RefCell<Buffer>>,
     thread_channel: ThreadChannel<N, P>,
@@ -49,7 +49,7 @@ pub struct PacketChannel<N = Packet, P = Packet> {
     marker: PhantomData<N>,
 }
 
-impl<N, P> Clone for PacketChannel<N, P> {
+impl<N, P> Clone for DatagramChannel<N, P> {
     fn clone(&self) -> Self {
         Self {
             packet_manager: self.packet_manager.clone(),
@@ -62,7 +62,7 @@ impl<N, P> Clone for PacketChannel<N, P> {
     }
 }
 
-impl<N, P> PacketChannel<N, P> {
+impl<N, P> DatagramChannel<N, P> {
     pub(crate) fn new(
         packet_manager: PacketManager,
         buffer: Rc<RefCell<Buffer>>,
@@ -198,13 +198,13 @@ impl<N, P> PacketChannel<N, P> {
     }
 }
 
-impl<N, P> ISnowflake for PacketChannel<N, P> {
+impl<N, P> ISnowflake for DatagramChannel<N, P> {
     fn id(&self) -> u64 {
         self.thread_channel.id()
     }
 }
 
-impl<N, P> Sink<P> for PacketChannel<N, P> {
+impl<N, P> Sink<P> for DatagramChannel<N, P> {
     fn write(&self, packet: P) -> io::Result<()> {
         // If the buffer is shutdown we know the channel was closed and so
         // need to fail the result right away. If it is not shutdown the handling of the rest
@@ -272,7 +272,7 @@ mod tests {
         let thread_channel =
             ThreadChannel::new(0, 0, Arc::new(crate::utils::concurrent::Dispatcher::new(&port).0));
         let head = BufferedSink::new(&packet_manager, &buffer, &thread_channel, &EventQueue::default());
-        let mut channel: PacketChannel = PacketChannel::new(
+        let mut channel: DatagramChannel = DatagramChannel::new(
             packet_manager,
             Rc::clone(&buffer),
             thread_channel,
@@ -285,6 +285,6 @@ mod tests {
         assert!(channel.write(Packet::new(BytesMut::from(&b"pong"[..]), address)).is_err());
         let packets = buffer.borrow_mut().read(usize::MAX);
         assert_eq!(packets.len(), 1);
-        assert_eq!(packets[0].address(), address);
+        assert_eq!(packets[0].socket_address(), address);
     }
 }

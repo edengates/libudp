@@ -31,11 +31,11 @@ impl Packet {
         Self { content, address }
     }
 
-    pub fn content(&self) -> &BytesMut {
+    pub fn data(&self) -> &BytesMut {
         &self.content
     }
 
-    pub fn address(&self) -> SocketAddr {
+    pub fn socket_address(&self) -> SocketAddr {
         self.address
     }
 

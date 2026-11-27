@@ -18,9 +18,9 @@ use crate::events::{Event, GenericEvent};
 use crate::Packet;
 use std::any::Any;
 
-/// Indicates that a packet was received in a [`PacketChannel`].
+/// Indicates that a packet was received in a [`DatagramChannel`].
 ///
-/// [`PacketChannel`]: crate::entities::channel::middleman::PacketChannel
+/// [`DatagramChannel`]: crate::entities::channel::middleman::DatagramChannel
 pub struct PacketReceivedEvent<T = Packet> {
     packet: T,
 }

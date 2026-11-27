@@ -27,7 +27,7 @@ pub mod utils;
 
 mod packet;
 pub use packet::Packet;
-pub use entities::channel::middleman::PacketChannel;
+pub use entities::channel::middleman::DatagramChannel;
 pub use requests::sockactions::PacketCreateAction;
 pub(crate) mod packet_manager;
 pub use packet_manager::PacketManager;

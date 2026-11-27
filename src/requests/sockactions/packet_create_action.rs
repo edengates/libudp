@@ -14,19 +14,19 @@
  * limitations under the License.
  */
 
-use crate::entities::channel::middleman::PacketChannel;
+use crate::entities::channel::middleman::DatagramChannel;
 use crate::requests::sockactions::SocketAction;
 use std::future::{self, IntoFuture, Ready};
 use std::io;
 
 #[must_use]
 pub struct PacketCreateAction<'a, N, P> {
-    channel: &'a mut PacketChannel<N, P>,
+    channel: &'a mut DatagramChannel<N, P>,
     packet: P,
 }
 
 impl<'a, N, P> PacketCreateAction<'a, N, P> {
-    pub(crate) fn new(channel: &'a mut PacketChannel<N, P>, packet: P) -> Self {
+    pub(crate) fn new(channel: &'a mut DatagramChannel<N, P>, packet: P) -> Self {
         Self { channel, packet }
     }
 }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-use crate::entities::channel::middleman::PacketChannel;
+use crate::entities::channel::middleman::DatagramChannel;
 use crate::entities::channel::concrete::ThreadChannel;
 use crate::hooks::PacketListener;
 use crate::requests::Sink;
@@ -30,7 +30,7 @@ use std::rc::Rc;
 pub struct InterfacedEventManager<P: EventManager, L, O> {
     lower: P,
     listener: L,
-    channel: PacketChannel<O, P::Output>,
+    channel: DatagramChannel<O, P::Output>,
     events: EventQueue,
     outbound: Rc<Outbound<O>>,
 }
@@ -44,7 +44,7 @@ impl<P: EventManager, L, O: Any + Send> InterfacedEventManager<P, L, O> {
         thread_channel: &ThreadChannel<Packet, Packet>,
     ) -> Self {
         let events = EventQueue::default();
-        let channel = PacketChannel::new(
+        let channel = DatagramChannel::new(
             packet_manager.clone(),
             Rc::clone(buffer),
             thread_channel.at_position(lower.position() + 1),

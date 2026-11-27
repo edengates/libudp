@@ -28,7 +28,7 @@ use std::net::UdpSocket;
 use std::os::fd::{AsFd, BorrowedFd};
 use std::rc::Rc;
 
-pub struct PacketSocketChannel {
+pub struct DatagramSocketChannel {
     socket: UdpSocket,
     channel: Rc<PacketChannelMixin>,
     has_remote: bool,
@@ -38,7 +38,7 @@ pub struct PacketSocketChannel {
     closing: bool,
 }
 
-impl PacketSocketChannel {
+impl DatagramSocketChannel {
     pub(crate) fn new(socket: UdpSocket, packet_manager: PacketManager) -> Self {
         let has_remote = packet_manager.remote_address().is_some();
         Self {
@@ -62,7 +62,7 @@ impl PacketSocketChannel {
     }
 }
 
-impl SocketHandler for PacketSocketChannel {
+impl SocketHandler for DatagramSocketChannel {
     fn execute(&mut self, manager: &mut ScheduledExecutorService) -> io::Result<bool> {
         let limit = self.channel.packet_manager().chunk_limit();
         while self.sending < limit {
@@ -160,7 +160,7 @@ mod tests {
     use crate::handle::socket;
     use crate::requests::sockactions::SocketAction;
     use crate::hooks::PacketListenerAdapter;
-    use crate::{DefaultPacketManagerBuilder, PacketChannel};
+    use crate::{DatagramChannel, DefaultPacketManagerBuilder};
     use crate::utils::concurrent::{Dispatcher, ScheduledThreadPoolExecutor};
     use crate::utils::config::PacketConfig;
     use libev::ext::CompletionService;
@@ -172,7 +172,7 @@ mod tests {
     struct EchoAdapter;
 
     impl PacketListenerAdapter for EchoAdapter {
-        async fn on_packet_received(&mut self, channel: &mut PacketChannel, packet: Packet) -> io::Result<()> {
+        async fn on_packet_received(&mut self, channel: &mut DatagramChannel, packet: Packet) -> io::Result<()> {
             channel.send_packet(packet).complete()
         }
     }
@@ -187,7 +187,7 @@ mod tests {
         let pool = ScheduledThreadPoolExecutor::with_factory(1, 64, CompletionService::epoll_factory());
         builder
             .set_socket_pool(pool.unwrap())
-            .set_address("127.0.0.1:0".parse().unwrap())
+            .set_local_address("127.0.0.1:0".parse().unwrap())
             .add_event_listener(EchoAdapter)
             .build()
             .unwrap()
@@ -231,7 +231,7 @@ mod tests {
         let address = socket.local_addr().unwrap();
         let mut manager = manager();
         let packet_manager = packet_manager(DefaultPacketManagerBuilder::new());
-        manager.register(Box::new(PacketSocketChannel::new(socket, packet_manager))).unwrap();
+        manager.register(Box::new(DatagramSocketChannel::new(socket, packet_manager))).unwrap();
 
         exchange(&mut manager, UdpSocket::bind("127.0.0.1:0").unwrap(), address);
         assert_eq!(manager.sockets_total(), 1);
@@ -248,7 +248,7 @@ mod tests {
         let address = socket.local_addr().unwrap();
         let mut manager = manager();
         let packet_manager = packet_manager(DefaultPacketManagerBuilder::new().set_remote_address(remote_address));
-        manager.register(Box::new(PacketSocketChannel::new(socket, packet_manager))).unwrap();
+        manager.register(Box::new(DatagramSocketChannel::new(socket, packet_manager))).unwrap();
 
         exchange(&mut manager, client, address);
         manager.close();

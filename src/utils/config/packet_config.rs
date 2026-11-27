@@ -30,7 +30,7 @@ pub struct PacketConfig {
 }
 
 impl PacketConfig {
-    pub fn address(&self) -> Option<SocketAddr> {
+    pub fn local_address(&self) -> Option<SocketAddr> {
         self.address
     }
 

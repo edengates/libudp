@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-use crate::entities::channel::middleman::PacketChannel;
+use crate::entities::channel::middleman::DatagramChannel;
 use crate::events::channel::{ChannelDisconnectEvent, ChannelReadyEvent, ChannelTimeoutEvent};
 use crate::events::packet::PacketReceivedEvent;
 use crate::events::{Event, GenericEvent};
@@ -29,14 +29,14 @@ use std::io;
 ///
 /// Events from the socket reach the listeners in the order they were registered, and a packet written by a listener
 /// passes the listeners before it on the way to the socket. By default every method passes the event or packet on
-/// through the [`PacketChannel`].
+/// through the [`DatagramChannel`].
 ///
 /// `I` is the type of the packets from the socket side, `O` is the type of the packets for the next listener.
-/// If a method returns an error, the [`PacketChannel`] is closed.
+/// If a method returns an error, the [`DatagramChannel`] is closed.
 #[allow(async_fn_in_trait)]
 pub trait PacketListenerAdapter<I: Any + Send = Packet, O: Any + Send = Packet>: Send {
     /// The channel is bound now.
-    async fn on_ready(&mut self, channel: &mut PacketChannel<O, I>) -> io::Result<()> {
+    async fn on_ready(&mut self, channel: &mut DatagramChannel<O, I>) -> io::Result<()> {
         channel.on_ready();
         Ok(())
     }
@@ -48,14 +48,14 @@ pub trait PacketListenerAdapter<I: Any + Send = Packet, O: Any + Send = Packet>:
     /// By default returns [`InvalidInput`] if `I` and `O` are different types.
     ///
     /// [`InvalidInput`]: io::ErrorKind::InvalidInput
-    async fn on_packet_received(&mut self, channel: &mut PacketChannel<O, I>, packet: I) -> io::Result<()> {
+    async fn on_packet_received(&mut self, channel: &mut DatagramChannel<O, I>, packet: I) -> io::Result<()> {
         let packet = cast(packet).ok_or(io::ErrorKind::InvalidInput)?;
         channel.on_packet_received(packet);
         Ok(())
     }
 
     /// The channel is closed now.
-    async fn on_channel_disconnect(&mut self, channel: &mut PacketChannel<O, I>) -> io::Result<()> {
+    async fn on_channel_disconnect(&mut self, channel: &mut DatagramChannel<O, I>) -> io::Result<()> {
         channel.on_channel_disconnect();
         Ok(())
     }
@@ -63,7 +63,7 @@ pub trait PacketListenerAdapter<I: Any + Send = Packet, O: Any + Send = Packet>:
     /// Nothing was read or written for the [AFK timeout].
     ///
     /// [AFK timeout]: crate::DefaultPacketManagerBuilder::set_afk_timeout
-    async fn on_channel_timeout(&mut self, channel: &mut PacketChannel<O, I>) -> io::Result<()> {
+    async fn on_channel_timeout(&mut self, channel: &mut DatagramChannel<O, I>) -> io::Result<()> {
         channel.on_channel_timeout();
         Ok(())
     }
@@ -71,7 +71,7 @@ pub trait PacketListenerAdapter<I: Any + Send = Packet, O: Any + Send = Packet>:
     /// Handles any other [`GenericEvent`].
     async fn on_generic_event(
         &mut self,
-        channel: &mut PacketChannel<O, I>,
+        channel: &mut DatagramChannel<O, I>,
         event: Box<dyn GenericEvent>,
     ) -> io::Result<()> {
         channel.on_generic_event(event);
@@ -87,20 +87,20 @@ pub trait PacketListenerAdapter<I: Any + Send = Packet, O: Any + Send = Packet>:
     ///
     /// [`InvalidInput`]: io::ErrorKind::InvalidInput
     /// [`NotConnected`]: io::ErrorKind::NotConnected
-    async fn write(&mut self, channel: &mut PacketChannel<O, I>, packet: O) -> io::Result<()> {
+    async fn write(&mut self, channel: &mut DatagramChannel<O, I>, packet: O) -> io::Result<()> {
         let packet = cast(packet).ok_or(io::ErrorKind::InvalidInput)?;
         channel.write(packet)
     }
 
-    /// Handles [`PacketChannel::close`] of the next listener.
-    async fn close(&mut self, channel: &mut PacketChannel<O, I>) -> io::Result<()> {
+    /// Handles [`DatagramChannel::close`] of the next listener.
+    async fn close(&mut self, channel: &mut DatagramChannel<O, I>) -> io::Result<()> {
         channel.close();
         Ok(())
     }
 }
 
 impl<I: Any + Send, O: Any + Send, L: PacketListenerAdapter<I, O>> PacketListener<I, O> for L {
-    async fn on_event(&mut self, channel: &mut PacketChannel<O, I>, event: Box<dyn Event>) -> io::Result<()> {
+    async fn on_event(&mut self, channel: &mut DatagramChannel<O, I>, event: Box<dyn Event>) -> io::Result<()> {
         match event.identifier() {
             ChannelReadyEvent::IDENTIFIER => self.on_ready(channel).await,
             PacketReceivedEvent::IDENTIFIER => {
@@ -120,11 +120,11 @@ impl<I: Any + Send, O: Any + Send, L: PacketListenerAdapter<I, O>> PacketListene
         }
     }
 
-    async fn write(&mut self, channel: &mut PacketChannel<O, I>, packet: O) -> io::Result<()> {
+    async fn write(&mut self, channel: &mut DatagramChannel<O, I>, packet: O) -> io::Result<()> {
         PacketListenerAdapter::write(self, channel, packet).await
     }
 
-    async fn close(&mut self, channel: &mut PacketChannel<O, I>) -> io::Result<()> {
+    async fn close(&mut self, channel: &mut DatagramChannel<O, I>) -> io::Result<()> {
         PacketListenerAdapter::close(self, channel).await
     }
 }

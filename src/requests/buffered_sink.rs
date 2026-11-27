@@ -15,7 +15,7 @@
  */
 
 use crate::entities::channel::concrete::ThreadChannel;
-use crate::entities::channel::middleman::PacketChannel;
+use crate::entities::channel::middleman::DatagramChannel;
 use crate::{Packet, PacketManager};
 use crate::requests::Sink;
 use crate::utils::{EventManager, EventQueue};
@@ -80,7 +80,7 @@ impl EventManager for Rc<BufferedSink> {
     }
 
     fn channels(&self, channels: &mut Vec<Box<dyn Any>>) {
-        channels.push(Box::new(PacketChannel::new(
+        channels.push(Box::new(DatagramChannel::new(
             self.packet_manager.clone(),
             Rc::clone(&self.buffer),
             self.thread_channel.clone(),

@@ -43,7 +43,7 @@ impl Message {
     }
 
     pub(crate) fn send(packet: Packet, has_remote: bool) -> Box<Self> {
-        let address = SockAddr::from(packet.address());
+        let address = SockAddr::from(packet.socket_address());
         let mut message = Self::new(packet.into_content());
         message.vector.iov_base = message.content.as_ptr().cast_mut().cast();
         message.vector.iov_len = message.content.len();

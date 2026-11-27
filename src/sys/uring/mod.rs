@@ -19,4 +19,4 @@ pub(crate) use scheduled_executor_service::DatagramOperations;
 mod message;
 pub use message::Message;
 mod packet_socket_channel;
-pub use packet_socket_channel::PacketSocketChannel;
+pub use packet_socket_channel::DatagramSocketChannel;
